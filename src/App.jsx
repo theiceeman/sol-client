@@ -1,60 +1,49 @@
-import { useState } from "react";
 import "./App.css";
 import { Connection, clusterApiUrl } from "@solana/web3.js";
 import { useWallet } from "@solana/wallet-adapter-react";
+import { WalletConnectButton } from "@solana/wallet-adapter-react-ui";
+import { WalletDisconnectButton } from "@solana/wallet-adapter-react-ui";
 import { WalletModalButton } from "@solana/wallet-adapter-react-ui";
-import { useEffect } from "react";
+import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
+import "@solana/wallet-adapter-react-ui/styles.css";
+import { useEffect, useState } from "react";
+import {
+  connectToBrowserWallet,
+  loadProvider,
+  transferTransaction,
+} from "./utils/web3-solana";
 
 function App() {
-  let [lamports, setLamports] = useState(0.1);
-  let [wallet, setWallet] = useState(
-    "9m5kFDqgpf7Ckzbox91RYcADqcmvxW4MmuNvroD5H2r9"
-  );
-
-  const connection = new Connection(clusterApiUrl("devnet"));
-  const { signIn, connect, publicKey, sendTransaction } = useWallet();
-
-  function walletConnect() {
-    console.log("xxx");
-
-    const input = {
-      domain: window.location.host,
-      address: publicKey ? publicKey.toBase58() : undefined,
-      statement: "Please sign in to proceed.",
-    };
-
-    connect();
-    signIn(input)
-  }
+  const [address, setAddress] = useState("");
+  const [provider, setProvider] = useState("");
 
   useEffect(() => {
-    console.log({ WalletModalButton });
+    async function fetch() {
+      setProvider(await loadProvider());
 
-    // connection.getBalance(publicKey).then((bal) => {
-    //   console.log(bal / LAMPORTS_PER_SOL);
-    // });
+      let result = await connectToBrowserWallet();
+      if (result) setAddress(result);
+    }
+    fetch();
   }, []);
 
   return (
     <>
-      <div className="text-purple-600">hello world</div>
-      <button
-        onClick={() => {
-          walletConnect();
-        }}
-        className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
-      >
-        Button
-      </button>
+      <div className="flex flex-col gap-5">
+        <button
+          onClick={async () => setAddress(await connectToBrowserWallet())}
+          className="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded inline-flex items-center"
+        >
+          <span> {address !== "" ? address : "Connect Wallet"} </span>
+        </button>
 
         <button
-          onClick={() => {
-            walletConnect();
-          }}
-          className="bg-red-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
+          onClick={async () => await transferTransaction(provider, address)}
+          className="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded inline-flex items-center"
         >
-          Button
+          <span>Send Transaction</span>
         </button>
+      </div>
     </>
   );
 }
