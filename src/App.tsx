@@ -1,7 +1,9 @@
+
 import "./App.css";
 import { useEffect, useState } from "react";
 import {
   connectToBrowserWallet,
+  deployTokenTransaction,
   loadProvider,
   transferTransaction,
 } from "./utils/web3-solana";
@@ -38,7 +40,7 @@ function App() {
         </button>
 
         <button
-          onClick={async () => await transferTransaction(provider, address)}
+          onClick={async () => await deployTokenTransaction(provider, address)}
           className="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded inline-flex items-center"
         >
           <span>Deploy token</span>

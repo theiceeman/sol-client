@@ -1,6 +1,5 @@
 import { Connection, PublicKey, SystemProgram, Transaction, clusterApiUrl } from "@solana/web3.js";
-import * as buffer from "buffer";
-window.Buffer = buffer.Buffer;
+import { buildCreateTokenTransaction, generateKeyPair } from "./deploy-token-transaction";
 
 const CLUSTER_URL = import.meta.env.RPC_URL ?? clusterApiUrl("devnet");
 const connection = new Connection(CLUSTER_URL, { commitment: "finalized" });
@@ -27,6 +26,7 @@ export async function loadProvider() {
         const provider = window.phantom?.solana;
 
         if (provider?.isPhantom) {
+            // console.log({provider})
             return provider;
         }
     }
@@ -56,17 +56,6 @@ export async function connectToBrowserWallet() {
 }
 
 
-
-export async function transferTransaction(provider: any, publicKey: PublicKey | string) {
-    try {
-        const transaction = await createTransferTransaction(publicKey);
-        const signature = await provider.signAndSendTransaction(transaction);
-        console.log({ signature })
-    } catch (error) {
-        console.log({ message: error });
-    }
-}
-
 /**
  * Creates an arbitrary transfer transaction
  * @param   {PublicKey}      publicKey  a public key
@@ -81,9 +70,62 @@ const createTransferTransaction = async (publicKey: PublicKey | string) => {
             lamports: 100,
         })
     );
+    // console.log({transaction});return;
     transaction.feePayer = new PublicKey(publicKey);
-
-    const anyTransaction = transaction;
-    anyTransaction.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
-    return anyTransaction;
+    transaction.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
+    return transaction;
 };
+
+
+export async function transferTransaction(provider: any, publicKey: PublicKey | string) {
+    try {
+        const transaction = await createTransferTransaction(publicKey);
+        // console.log({transaction});return;
+        const signature = await provider.signAndSendTransaction(transaction);
+        // console.log({ signature })
+    } catch (error) {
+        console.log({ message: error });
+    }
+}
+
+
+
+
+export async function deployTokenTransaction(provider: any, publicKey: string) {
+    let mintKeypair = generateKeyPair()
+
+    const tokenConfig = {
+        mint: mintKeypair.publicKey,
+        updateAuthority: new PublicKey(publicKey),
+        name: "AVALANCHE",
+        symbol: "AVAX",
+        image: "https://www.paradigm.xyz/static/madrealities.png",
+        uri: "https://raw.githubusercontent.com/theiceeman/solana-crash-course/main/token.json",
+        additionalMetadata: [
+            ["description", "This is a short description..."]
+        ] as [string, string][],
+    };
+
+    try {
+        const transaction = await buildCreateTokenTransaction(
+            tokenConfig,
+            new PublicKey(publicKey),
+            mintKeypair,
+            1000000_000000000
+        );
+
+        const serializedTx = transaction.serialize({ requireAllSignatures: false });
+        const recoveredTransaction = Transaction.from(Buffer.from(serializedTx));
+
+        recoveredTransaction.partialSign(mintKeypair);
+        const signedTx = await provider.signTransaction(recoveredTransaction);
+
+        const confirmTransaction = await connection.sendRawTransaction(
+            signedTx.serialize()
+        );
+
+        console.log({ confirmTransaction }); return;
+    } catch (error) {
+        console.log({ message: error });
+    }
+}
