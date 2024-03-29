@@ -5,6 +5,15 @@ window.Buffer = buffer.Buffer;
 const CLUSTER_URL = import.meta.env.RPC_URL ?? clusterApiUrl("devnet");
 const connection = new Connection(CLUSTER_URL, { commitment: "finalized" });
 
+declare global {
+    interface Window {
+        ethereum?: any;
+        web3: any;
+        solana: any;
+        phantom: any;
+    }
+}
+
 export async function loadProvider() {
     const { solana } = window;
     console.log({ window })
@@ -27,25 +36,28 @@ export async function loadProvider() {
 
 
 export async function connectToBrowserWallet() {
+    const { solana } = window;
+
     try {
-        const { solana } = window;
         if (!solana) throw new Error('Install Solana Phantom wallet.')
+        // const provider = window.phantom?.solana;
 
-        const provider = window.phantom?.solana;
-
-        // connect to wallet
-        const wallet = await provider.request({ method: "connect", params: { onlyIfTrusted: true } });
-        console.log({ wallet: wallet.publicKey.toString() })
+        const wallet = await solana.request({ method: "connect", params: { onlyIfTrusted: true } });
         return wallet.publicKey.toString();
 
-    } catch (err) {
+    } catch (err: any) {
+        if (err.message === 'User rejected the request.') {
+            const wallet = await solana.request({ method: "connect", params: {} });
+            return wallet.publicKey.toString();
+        }
+
         console.log({ err: err.message })
     }
 }
 
 
 
-export async function transferTransaction(provider, publicKey) {
+export async function transferTransaction(provider: any, publicKey: PublicKey | string) {
     try {
         const transaction = await createTransferTransaction(publicKey);
         const signature = await provider.signAndSendTransaction(transaction);
@@ -61,7 +73,7 @@ export async function transferTransaction(provider, publicKey) {
  * @param   {Connection}  connection an RPC connection
  * @returns {Promise<Transaction>}            a transaction
  */
-const createTransferTransaction = async (publicKey) => {
+const createTransferTransaction = async (publicKey: PublicKey | string) => {
     const transaction = new Transaction().add(
         SystemProgram.transfer({
             fromPubkey: new PublicKey(publicKey),
